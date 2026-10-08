@@ -58,18 +58,17 @@ jobs:
               url_texto = "https://telegram.org"
               url_foto = "https://telegram.org"
               
-              # Primero enviamos el texto de forma obligatoria
+              # Envío inmediato del texto
               r = requests.post(url_texto, data={"chat_id": TELEGRAM_CHAT_ID, "text": texto}, timeout=15)
               if not r.ok:
-                  raise Exception(f"Telegram rechazó el mensaje de texto. API: {r.text}")
+                  log.error(f"Telegram rechazó el mensaje: {r.text}")
               
-              # Intentamos enviar la foto en un bloque independiente para que si falla, no destruya el aviso
               if captura and Path(captura).exists():
                   try:
                       with open(captura, "rb") as f:
                           requests.post(url_foto, data={"chat_id": TELEGRAM_CHAT_ID}, files={"photo": f}, timeout=30)
                   except Exception as e:
-                      log.error(f"Telegram no pudo procesar el archivo de imagen adjunto: {e}")
+                      log.error(f"Error al enviar la imagen: {e}")
 
           def contiene(texto, lista):
               return any(t in texto for t in lista)
@@ -134,6 +133,10 @@ jobs:
               return "hay_cita", "¡Posible disponibilidad! El mensaje de 'no hay citas' desapareció"
 
           def main():
+              # CORRECCIÓN DEFINITIVA: El aviso de arranque se envía ANTES de abrir el navegador o tocar el captcha
+              ahora = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+              telegram(f"🔍 [Monitor Citas] Iniciando revisión programada de las {ahora}. Conectando con el consulado...")
+              
               with sync_playwright() as p:
                   browser = p.chromium.launch(headless=True)
                   ctx = browser.new_context(locale="es-ES", viewport={"width": 1366, "height": 900})
@@ -152,17 +155,18 @@ jobs:
                       
                   log.info(f"Resultado final: {estado} - {detalle}")
                   
+                  # Alertas de resultado al final
                   if estado == "hay_cita":
-                      telegram(f"🚨 ¡CITAS DISPONIBLES!\nEstado: {detalle}", captura)
+                      telegram(f"🚨 ¡CITAS DISPOLIBLES!\nEstado: {detalle}", captura)
                   elif estado == "sin_cita":
-                      telegram(f"🔍 Revisión automática: El monitor sigue activo. {detalle}.", captura)
+                      telegram(f"🔍 Resultado: {detalle}.", captura)
                   else:
-                      telegram(f"⚠️ Alerta en revisión del monitor: {detalle}.", captura)
+                      telegram(f"⚠️ Nota de revisión: {detalle}.", captura)
                   browser.close()
 
           if __name__ == "__main__":
               main()
           EOF
           
-          echo "=== EJECUTANDO CON ENVIADOR DE TEXTO SEPARADO ==="
+          echo "=== EJECUTANDO ALERTA TEMPRANA BLINDADA ==="
           python script_limpio.py
