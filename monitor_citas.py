@@ -42,8 +42,13 @@ SERVICIO = ""
 MIN_ESPERA = 35
 MAX_ESPERA = 70
 
-# Si hay bloqueo / Cloudflare, esperar esto antes de reintentar (minutos)
-COOLDOWN_BLOQUEO = 120
+# Si hay bloqueo / Cloudflare, usar
+result = solver.turnstile(sitekey='0x1AAAAAAAAkg0s2VIOD34y5',
+                            url='http://mysite.com/', 
+                            data='foo',
+                            pagedata='bar',
+                            action='challenge',
+                            useragent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36')
 
 # Tope de revisiones por dia (proteccion)
 MAX_REVISIONES_DIA = 28
