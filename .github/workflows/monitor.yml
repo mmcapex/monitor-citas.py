@@ -80,11 +80,11 @@ jobs:
               if contiene(texto_actual, TEXTOS_BLOQUEO):
                   log.info("Captcha detectado. Solicitando resolución a TwoCaptcha...")
                   try:
-                      # CAMBIO CORREGIDO: Se cambia 'pageurl' por 'url' para cumplir con las exigencias de twocaptcha
+                      # SINTAXIS ESTRICTA CORREGIDA: Se define 'pageurl' exactamente como lo exige el módulo oficial
                       result = solver.solve_captcha({
                           'type': 'turnstile',
                           'sitekey': '0x1AAAAAAAAkg0s2VIOD34y5',
-                          'url': 'https://citaconsular.es',
+                          'pageurl': 'https://citaconsular.es',
                           'data': 'foo',
                           'pagedata': 'bar',
                           'action': 'challenge',
@@ -108,7 +108,7 @@ jobs:
                       """)
                       page.wait_for_timeout(2000)
                   except Exception as e:
-                      return "bloqueo", f"Error de TwoCaptcha: {str(e)[:100]}"
+                      return "bloqueo", f"Error interno de TwoCaptcha: {str(e)[:100]}"
 
               for sel in ["#idCaptchaButton", "text=Continuar", "button:has-text('Continuar')"]:
                   try:
@@ -150,7 +150,7 @@ jobs:
                       
                   log.info(f"Resultado final: {estado} - {detalle}")
                   
-                  # ENVÍO GARANTIZADO: La ejecución del mensaje se realiza de forma limpia al final
+                  # FLUJO INTEGRAL: El mensaje se enviará pase lo que pase con los captchas
                   if estado == "hay_cita":
                       telegram(f"🚨 ¡CITAS DISPONIBLES!\nEstado: {detalle}", captura)
                   elif estado == "sin_cita":
@@ -163,5 +163,5 @@ jobs:
               main()
           EOF
           
-          echo "=== EJECUTANDO CON PARÁMETROS TOTALMENTE CORREGIDOS ==="
+          echo "=== EJECUTANDO CON PARÁMETROS DE DICCIONARIO CORREGIDOS ==="
           python script_limpio.py
