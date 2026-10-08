@@ -3,7 +3,7 @@ name: Monitor citas consulado
 on:
   schedule:
     - cron: "0 */4 * * *"       # Se ejecuta automáticamente cada 4 horas
-  workflow_dispatch:            # Mantiene el botón manual para probar
+  workflow_dispatch:            # Mantiene el botón manual para pruebas
 
 jobs:
   revisar:
@@ -80,11 +80,11 @@ jobs:
               if contiene(texto_actual, TEXTOS_BLOQUEO):
                   log.info("Captcha detectado. Solicitando resolución a TwoCaptcha...")
                   try:
-                      # SINTAXIS CORECTA: Uso de los parámetros de envío universales para Turnstile
+                      # CAMBIO CORREGIDO: Se cambia 'pageurl' por 'url' para cumplir con las exigencias de twocaptcha
                       result = solver.solve_captcha({
                           'type': 'turnstile',
                           'sitekey': '0x1AAAAAAAAkg0s2VIOD34y5',
-                          'pageurl': 'https://citaconsular.es',
+                          'url': 'https://citaconsular.es',
                           'data': 'foo',
                           'pagedata': 'bar',
                           'action': 'challenge',
@@ -137,7 +137,6 @@ jobs:
                   ctx = browser.new_context(locale="es-ES", viewport={"width": 1366, "height": 900})
                   page = ctx.new_page()
                   
-                  # Tomamos una captura limpia de control inicial obligatoria por seguridad
                   try:
                       estado, detalle = revisar(page)
                   except Exception as e:
@@ -151,6 +150,7 @@ jobs:
                       
                   log.info(f"Resultado final: {estado} - {detalle}")
                   
+                  # ENVÍO GARANTIZADO: La ejecución del mensaje se realiza de forma limpia al final
                   if estado == "hay_cita":
                       telegram(f"🚨 ¡CITAS DISPONIBLES!\nEstado: {detalle}", captura)
                   elif estado == "sin_cita":
@@ -163,5 +163,5 @@ jobs:
               main()
           EOF
           
-          echo "=== EJECUTANDO CON RESOLVEDOR DE CAPTCHA CORREGIDO ==="
+          echo "=== EJECUTANDO CON PARÁMETROS TOTALMENTE CORREGIDOS ==="
           python script_limpio.py
