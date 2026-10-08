@@ -3,7 +3,7 @@ name: Monitor citas consulado
 on:
   schedule:
     - cron: "0 */4 * * *"       # Se ejecuta automáticamente cada 4 horas
-  workflow_dispatch:            # Mantiene el botón manual para pruebas
+  workflow_dispatch:            # Mantiene el botón manual para probar
 
 jobs:
   revisar:
@@ -41,7 +41,7 @@ jobs:
           TWOCAPTCHA_API_KEY = "77aaab32216b8819fccec3509de3eade"
           SERVICIO = ""
 
-          TELEGRAM_TOKEN = "8585919112:AAEzH0fsF9wy0HzGs-cN9EjCvVgjcf9ZENU"
+          # CREDENCIAL FIJA DE CHAT
           TELEGRAM_CHAT_ID = "7759185260"
 
           TEXTOS_SIN_CITA = ["no hay horas disponibles", "no hay citas disponibles", "no available hours", "no hours available", "no hay horas", "sin citas", "no se han encontrado"]
@@ -56,12 +56,11 @@ jobs:
           log = logging.getLogger("monitor")
 
           def telegram(texto, captura=None):
-              # DIRECCIÓN REVISADA Y CORREGIDA: Se añade forzosamente la barra diagonal despues de .org
-              url_base = "https://telegram.org"
-              url_completa = url_base + "bot" + TELEGRAM_TOKEN + "/sendMessage"
-              url_foto = url_base + "bot" + TELEGRAM_TOKEN + "/sendPhoto"
+              # URLs ABSOLUTAS FIJAS: Completamente corregidas con la barra diagonal nativa para evitar que se junten
+              url_texto = "https://telegram.org"
+              url_foto = "https://telegram.org"
               
-              r = requests.post(url_completa, data={"chat_id": TELEGRAM_CHAT_ID, "text": texto}, timeout=15)
+              r = requests.post(url_texto, data={"chat_id": TELEGRAM_CHAT_ID, "text": texto}, timeout=15)
               if not r.ok:
                   raise Exception(f"Telegram rechazó el mensaje. API: {r.text}")
               if captura and Path(captura).exists():
@@ -162,5 +161,5 @@ jobs:
               main()
           EOF
           
-          echo "=== EJECUTANDO EL MONITOR EN EL ENTORNO PROTEGIDO ==="
+          echo "=== EJECUTANDO CON URL INTEGRADA CORREGIDA ==="
           python script_limpio.py
