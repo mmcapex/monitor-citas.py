@@ -41,7 +41,8 @@ jobs:
           TWOCAPTCHA_API_KEY = "77aaab32216b8819fccec3509de3eade"
           SERVICIO = ""
 
-          # CREDENCIALES FIJAS: Completamente validadas en formato de texto directo
+          # El script absorbe los datos de forma nativa e interna en el servidor de Linux
+          TELEGRAM_TOKEN = "8585919112:AAEzH0fsF9wy0HzGs-cN9EjCvVgjcf9ZENU"
           TELEGRAM_CHAT_ID = "7759185260"
 
           TEXTOS_SIN_CITA = ["no hay horas disponibles", "no hay citas disponibles", "no available hours", "no hours available", "no hay horas", "sin citas", "no se han encontrado"]
@@ -56,11 +57,12 @@ jobs:
           log = logging.getLogger("monitor")
 
           def telegram(texto, captura=None):
-              # URL ABSOLUTA CORREGIDA: Eliminamos variables dinamicas que pegaban el texto de forma incorrecta al host
-              url_texto = "https://telegram.org"
-              url_foto = "https://telegram.org"
+              # La URL se construye usando un formato de concatenación nativo inmune a recortes de texto
+              url_base = "https://telegram.org"
+              url_completa = url_base + "bot" + TELEGRAM_TOKEN + "/sendMessage"
+              url_foto = url_base + "bot" + TELEGRAM_TOKEN + "/sendPhoto"
               
-              r = requests.post(url_texto, data={"chat_id": TELEGRAM_CHAT_ID, "text": texto}, timeout=15)
+              r = requests.post(url_completa, data={"chat_id": TELEGRAM_CHAT_ID, "text": texto}, timeout=15)
               if not r.ok:
                   raise Exception(f"Telegram rechazó el mensaje. API: {r.text}")
               if captura and Path(captura).exists():
@@ -161,5 +163,5 @@ jobs:
               main()
           EOF
           
-          echo "=== EJECUTANDO EL ARCHIVO CONTROLADO Y VALIDADO ==?"
+          echo "=== EJECUTANDO EL MONITOR EN EL ENTORNO PROTEGIDO ==="
           python script_limpio.py
