@@ -1,0 +1,32 @@
+name: Monitor citas consulado
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+jobs:
+  revisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Espera aleatoria
+        if: github.event_name == 'schedule'
+        run: sleep $(( RANDOM % 1740 ))
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: |
+          pip install playwright requests twocaptcha
+          python -m playwright install --with-deps chromium
+
+      - name: Revisar citas
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python monitor_citas.py --once --headless
