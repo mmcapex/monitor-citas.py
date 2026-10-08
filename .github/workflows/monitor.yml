@@ -2,8 +2,8 @@ name: Monitor citas consulado
 
 on:
   schedule:
-    - cron: "0 */4 * * *"     # Se ejecuta exactamente cada 4 horas (00:00, 04:00, 08:00, etc.)
-  workflow_dispatch:          # Mantiene el botón manual para cuando quieras probar
+    - cron: "0 */4 * * *"
+  workflow_dispatch:
 
 jobs:
   revisar:
@@ -25,13 +25,10 @@ jobs:
           pip install playwright requests twocaptcha
           python -m playwright install --with-deps chromium
 
-           - name: Revisar citas
+      - name: Revisar citas
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          echo "=== ENCONTRANDO EL SCRIPT ==="
-          SCRIPT_PATH=$(find . -maxdepth 1 -name "monitor*.py" -print -quit)
-          echo "Ejecutando: $SCRIPT_PATH"
-          python "$SCRIPT_PATH" --once --headless
-
+          echo "=== INICIANDO EJECUCIÓN DIRECTA ==="
+          python -m monitor_citas --once --headless
