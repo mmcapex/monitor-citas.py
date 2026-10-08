@@ -25,10 +25,11 @@ jobs:
           pip install playwright requests twocaptcha
           python -m playwright install --with-deps chromium
 
-      - name: Revisar citas
+       - name: Revisar citas
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          echo "=== INICIANDO EJECUCIÓN DIRECTA ==="
-          python -m monitor_citas --once --headless
+          echo "=== INICIANDO EJECUCIÓN DIRECTA FORZADA ==="
+          python monitor_citas.py --once --headless || python monitor-citas.py --once --headless
+
