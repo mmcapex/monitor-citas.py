@@ -9,64 +9,46 @@ import logging
 import os
 import sys
 from pathlib import Path
-
 import requests
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 from twocaptcha import TwoCaptcha  
 
-# ================== CONFIGURACION ==================
 URL = "https://citaconsular.es"
 
-# Tu API Key de TwoCaptcha integrada directamente
+# TUS CREDENCIALES REALES INTEGRADAS DIRECTAMENTE DE FORMA FIJA
 TWOCAPTCHA_API_KEY = "77aaab32216b8819fccec3509de3eade"
+TELEGRAM_CHAT_ID = "7759185260"
+
 SERVICIO = ""
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
-
-TEXTOS_SIN_CITA = [
-    "no hay horas disponibles", "no hay citas disponibles",
-    "no available hours", "no hours available", "no hay horas",
-    "sin citas", "no se han encontrado",
-]
-TEXTOS_BLOQUEO = [
-    "captcha", "acceso denegado", "access denied", "too many requests",
-    "demasiadas solicitudes", "verify you are human", "verificación de seguridad",
-    "verificacion de seguridad", "security verification", "just a moment",
-    "verificando", "cloudflare",
-]
+TEXTOS_SIN_CITA = ["no hay horas disponibles", "no hay citas disponibles", "no available hours", "no hours available", "no hay horas", "sin citas", "no se han encontrado"]
+TEXTOS_BLOQUEO = ["captcha", "acceso denegado", "access denied", "too many requests", "demasiadas solicitudes", "verify you are human", "verificación de seguridad", "verificacion de seguridad", "security verification", "just a moment", "verificando", "cloudflare"]
 
 CAPTURAS = Path("capturas_citas")
-LOG_FILE = Path("monitor_citas.log")
 CAPTURAS.mkdir(exist_ok=True)
-# ===================================================
 
 solver = TwoCaptcha(TWOCAPTCHA_API_KEY)
 
-def setup_logging():
-    handlers = [logging.StreamHandler(sys.stdout)]
-    logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(message)s",
-                        datefmt="%Y-%m-%d %H:%M:%S", handlers=handlers)
-    return logging.getLogger("monitor")
-
-log = setup_logging()
+logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S", handlers=[logging.StreamHandler(sys.stdout)])
+log = logging.getLogger("monitor")
 
 def telegram(texto, captura=None):
-    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
-        raise ValueError("ERROR CRÍTICO: Las variables están vacías en el servidor.")
-
-    # URL oficial de la API de Telegram corregida sin asteriscos
-    base = f"https://telegram.org{TELEGRAM_TOKEN}"
+    # DIRECCIÓN FIJA ABSOLUTA CORREGIDA CONTRA RECORTES Y ERRORES DE SINTAXIS
+    url_texto = "https://telegram.org"
+    url_foto = "https://telegram.org"
     
-    r = requests.post(f"{base}/sendMessage", data={"chat_id": TELEGRAM_CHAT_ID, "text": texto}, timeout=15)
+    # Envío del texto obligatorio primero
+    r = requests.post(url_texto, data={"chat_id": TELEGRAM_CHAT_ID, "text": texto}, timeout=15)
     if not r.ok:
-        raise Exception(f"Telegram rechazó el mensaje. Respuesta de la API: {r.text}")
-        
+        log.error(f"Telegram rechazó el mensaje: {r.text}")
+    
+    # Envío de la foto independiente para que si se genera vacía no rompa el aviso
     if captura and Path(captura).exists():
-        with open(captura, "rb") as f:
-            r_foto = requests.post(f"{base}/sendPhoto", data={"chat_id": TELEGRAM_CHAT_ID}, files={"photo": f}, timeout=30)
-            if not r_foto.ok:
-                log.error(f"Telegram rechazó la foto: {r_foto.text}")
+        try:
+            with open(captura, "rb") as f:
+                requests.post(url_foto, data={"chat_id": TELEGRAM_CHAT_ID}, files={"photo": f}, timeout=30)
+        except Exception as e:
+            log.error(f"Telegram no pudo procesar la imagen: {e}")
 
 def contiene(texto, lista):
     return any(t in texto for t in lista)
@@ -81,18 +63,17 @@ def revisar(page):
     texto_actual = page.inner_text("body").lower()
 
     if contiene(texto_actual, TEXTOS_BLOQUEO):
-        log.info("Captcha detectado. Solicitando resolución a TwoCaptcha...")
+        log.info("Captcha Turnstile detectado. Solicitando resolución a TwoCaptcha...")
         try:
+            real_agent = str(page.evaluate("navigator.userAgent"))
+            # SINTAXIS OFICIAL TURNSTILE SDK: Clave pública del consulado en minúsculas estrictas
             result = solver.turnstile(
-                sitekey='0x1AAAAAAAAkg0s2VIOD34y5',
+                sitekey='0x4AAAAAAADnHH96Z65ksbBe',
                 url='https://citaconsular.es',
-                data='foo',
-                pagedata='bar',
-                action='challenge',
-                useragent=page.evaluate("navigator.userAgent")
-            )
-            token = result['code']
-            log.info("Token de respuesta recibido con éxito.")
+                userAgent=real_agent
+              )
+            token = result['code'] if isinstance(result, dict) else result
+            log.info("Token de respuesta recibido con éxito de TwoCaptcha.")
             
             page.evaluate(f"""
                 () => {{
@@ -108,7 +89,6 @@ def revisar(page):
                 }}
             """)
             page.wait_for_timeout(2000)
-            
         except Exception as e:
             return "bloqueo", f"Error de TwoCaptcha: {str(e)[:100]}"
 
@@ -131,10 +111,13 @@ def revisar(page):
         return "bloqueo", "Sigue bloqueado por CAPTCHA"
     if contiene(texto, TEXTOS_SIN_CITA):
         return "sin_cita", "No hay horas disponibles"
-    
     return "hay_cita", "¡Posible disponibilidad! El mensaje de 'no hay citas' desapareció"
 
 def main():
+    # ALERTA DE INICIO: Te avisa de forma obligatoria antes de que Playwright intente abrir nada
+    ahora = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    telegram(f"🔍 [Monitor Citas] Iniciando revisión programada de las {ahora}. Conectando con el consulado...")
+    
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         ctx = browser.new_context(locale="es-ES", viewport={"width": 1366, "height": 900})
@@ -145,7 +128,7 @@ def main():
         except Exception as e:
             estado, detalle = "error", str(e)[:150]
             
-        captura = CAPTURAS / f"{dt.datetime.now():%Y%m%d_%H%M%S}_{estado}.png"
+        captura = CAPTURAS / f"reporte_actual.png"
         try:
             page.screenshot(path=str(captura), full_page=True)
         except Exception:
@@ -153,13 +136,13 @@ def main():
             
         log.info(f"Resultado final: {estado} - {detalle}")
         
+        # Alertas de resultado al terminar el proceso
         if estado == "hay_cita":
             telegram(f"🚨 ¡CITAS DISPONIBLES!\nEstado: {detalle}", captura)
         elif estado == "sin_cita":
-            telegram(f"🔍 Revisión automática: El monitor sigue activo. {detalle}.", captura)
+            telegram(f"🔍 Resultado: {detalle}.", captura)
         else:
-            telegram(f"⚠️ Alerta en revisión del monitor: {detalle}.", captura)
-            
+            telegram(f"⚠️ Nota de revisión: {detalle}.", captura)
         browser.close()
 
 if __name__ == "__main__":
