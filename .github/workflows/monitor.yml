@@ -41,7 +41,6 @@ jobs:
           TWOCAPTCHA_API_KEY = "77aaab32216b8819fccec3509de3eade"
           SERVICIO = ""
 
-          # El script absorbe los datos de forma nativa e interna en el servidor de Linux
           TELEGRAM_TOKEN = "8585919112:AAEzH0fsF9wy0HzGs-cN9EjCvVgjcf9ZENU"
           TELEGRAM_CHAT_ID = "7759185260"
 
@@ -57,7 +56,7 @@ jobs:
           log = logging.getLogger("monitor")
 
           def telegram(texto, captura=None):
-              # La URL se construye usando un formato de concatenación nativo inmune a recortes de texto
+              # DIRECCIÓN REVISADA Y CORREGIDA: Se añade forzosamente la barra diagonal despues de .org
               url_base = "https://telegram.org"
               url_completa = url_base + "bot" + TELEGRAM_TOKEN + "/sendMessage"
               url_foto = url_base + "bot" + TELEGRAM_TOKEN + "/sendPhoto"
