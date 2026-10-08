@@ -30,7 +30,5 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          # Buscamos el archivo en cualquier carpeta del repositorio y lo ejecutamos directamente
-          SCRIPT=$(find . -name "monitor*.py" -not -path "*/.*" -print -quit)
-          echo "Ejecutando script encontrado en: $SCRIPT"
-          python "$SCRIPT"
+          echo "=== EJECUTANDO SCRIPT DEFINITIVO ==="
+          python ./monitor-citas.py/monitor-citas.py
