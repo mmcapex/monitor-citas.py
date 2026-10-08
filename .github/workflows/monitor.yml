@@ -22,7 +22,6 @@ jobs:
 
       - name: Instalar dependencias
         run: |
-          # Instalación estricta de la librería oficial
           pip install playwright requests 2captcha-python
           python -m playwright install --with-deps chromium
 
@@ -82,8 +81,9 @@ jobs:
                   log.info("Captcha Turnstile detectado. Solicitando resolución a TwoCaptcha...")
                   try:
                       real_agent = str(page.evaluate("navigator.userAgent"))
+                      # CLAVE REAL INSTALADA: Clave pública Turnstile del widget de citaconsular.es
                       result = solver.turnstile(
-                          sitekey='0x1AAAAAAAAkg0s2VIOD34y5',
+                          sitekey='0x4AAAAAAADnHH96Z65ksbBe',
                           url='https://citaconsular.es',
                           userAgent=real_agent
                       )
