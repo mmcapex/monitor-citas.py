@@ -2,8 +2,8 @@ name: Monitor citas consulado
 
 on:
   schedule:
-    - cron: "17 * * * *"
-  workflow_dispatch:
+    - cron: "0 */4 * * *"     # Se ejecuta exactamente cada 4 horas (00:00, 04:00, 08:00, etc.)
+  workflow_dispatch:          # Mantiene el botón manual para cuando quieras probar
 
 jobs:
   revisar:
