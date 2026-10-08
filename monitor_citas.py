@@ -1,6 +1,7 @@
 """
 Monitor de citas - citaconsular.es (widget Bookitit)
 Modificado para resolver de forma automática CAPTCHAs de Cloudflare Turnstile.
+Envía reportes continuos con capturas de pantalla integradas hacia Telegram.
 
 Instalacion:
     py -m pip install playwright requests plyer twocaptcha
@@ -23,7 +24,7 @@ from twocaptcha import TwoCaptcha
 # ================== CONFIGURACION ==================
 URL = "https://citaconsular.es"
 
-# Tu API Key de TwoCaptcha integrada directamente
+# Tu API Key de TwoCaptcha integrada directamente de forma fija
 TWOCAPTCHA_API_KEY = "77aaab32216b8819fccec3509de3eade"
 
 # Texto del servicio a seleccionar, p.ej. "Pasaporte". Vacio = no selecciona.
@@ -70,18 +71,32 @@ def setup_logging():
 
 log = setup_logging()
 
-# ---------------- Telegram ----------------
+# ---------------- Telegram y Test de Errores ----------------
 def telegram(texto, captura=None):
     base = f"https://telegram.org{TELEGRAM_TOKEN}"
+    
+    # Validador de consistencia de Variables de Entorno en el servidor
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+        raise ValueError(
+            f"CRÍTICO: Las credenciales están vacías en el servidor. "
+            f"TOKEN: {'OK' if TELEGRAM_TOKEN else 'VACÍO'}, "
+            f"CHAT_ID: {'OK' if TELEGRAM_CHAT_ID else 'VACÍO'}. "
+            f"Asegúrate de configurarlas en los Repository Secrets de GitHub."
+        )
+        
     try:
         r = requests.post(f"{base}/sendMessage", data={"chat_id": TELEGRAM_CHAT_ID, "text": texto}, timeout=15)
         if not r.ok:
-            log.error(f"Telegram rechazo el mensaje: {r.text}")
+            raise Exception(f"Telegram rechazó el mensaje de texto. Respuesta de la API: {r.text}")
+            
         if captura and Path(captura).exists():
             with open(captura, "rb") as f:
-                requests.post(f"{base}/sendPhoto", data={"chat_id": TELEGRAM_CHAT_ID}, files={"photo": f}, timeout=30)
+                r_foto = requests.post(f"{base}/sendPhoto", data={"chat_id": TELEGRAM_CHAT_ID}, files={"photo": f}, timeout=30)
+                if not r_foto.ok:
+                    log.error(f"Telegram rechazó la foto (pero el texto sí se envió). Respuesta: {r_foto.text}")
     except Exception as e:
-        log.error(f"Error Telegram: {e}")
+        log.error(f"Error crítico en comunicación con Telegram: {e}")
+        raise e  # Eleva el error para obligar a GitHub Actions a marcar el error en rojo si las credenciales fallan
 
 def avisar(titulo, mensaje, captura=None):
     log.info(f"AVISO -> {titulo} | {mensaje}")
@@ -144,7 +159,7 @@ def revisar(page):
 
     # DETECCIÓN Y RESOLUCIÓN DEL CAPTCHA / CLOUDFLARE
     if contiene(texto_actual, TEXTOS_BLOQUEO):
-        log.info("Captcha/Cloudflare detectado. Solicitando resolución a TwoCaptcha...")
+        log.info("Captcha/Cloudflare Turnstile detectado. Solicitando resolución a TwoCaptcha...")
         try:
             result = solver.turnstile(
                 sitekey='0x1AAAAAAAAkg0s2VIOD34y5',
@@ -152,11 +167,12 @@ def revisar(page):
                 data='foo',
                 pagedata='bar',
                 action='challenge',
-                useragent=page.evaluate("navigator.userAgent")
+                useragent=page.evaluate("navigator.userAgent") # Sincroniza el User Agent exacto
             )
             token = result['code']
             log.info("Token de respuesta recibido de TwoCaptcha de forma exitosa.")
             
+            # Inyección del token generado en los contenedores ocultos esperados por Cloudflare
             page.evaluate(f"""
                 () => {{
                     const inputs = document.querySelectorAll('textarea[name*="response"], input[name*="response"]');
@@ -175,7 +191,7 @@ def revisar(page):
         except Exception as e:
             return "bloqueo", f"Error de TwoCaptcha: {str(e)[:100]}"
 
-    # Boton de bienvenida "Continuar"
+    # Botón de paso inicial "Continuar" del widget Bookitit
     for sel in ["#idCaptchaButton", "text=Continuar", "button:has-text('Continuar')"]:
         try:
             btn = page.locator(sel).first
@@ -211,7 +227,8 @@ def una_revision(page):
     except Exception as e:
         estado, detalle = "error", str(e)[:150]
     captura = None
-    if estado in ("hay_cita", "bloqueo", "error", "sin_cita"): # Captura siempre para control visual
+    # Forzamos captura de pantalla en cualquier estado (incluyendo sin_cita) para control de reportes
+    if estado in ("hay_cita", "bloqueo", "error", "sin_cita"): 
         captura = CAPTURAS / f"{dt.datetime.now():%Y%m%d_%H%M%S}_{estado}.png"
         try:
             page.screenshot(path=str(captura), full_page=True)
@@ -226,7 +243,7 @@ def main():
     parser.add_argument("--once", action="store_true", help="Una sola revision")
     args = parser.parse_args()
 
-    # Desactivamos envío de prueba inicial para que no sature, el reporte irá al final de la revisión
+    # Desactivamos envío de alerta inicial de arranque redundante; los reportes van directo en la ejecución
     validar_telegram(enviar_prueba=False)
 
     with sync_playwright() as p:
@@ -234,27 +251,6 @@ def main():
         
         if args.once:
             estado, detalle, captura = una_revision(page)
-            log.info(f"Resultado único: {estado} - {detalle}")
+            log.info(f"Resultado de revisión única: {estado} - {detalle}")
             
-            # CONFIGURACIÓN SOLICITADA: Manda Telegram SIEMPRE con el estado actual y foto de la web
-            if estado == "hay_cita":
-                avisar("🚨 ¡CITAS DISPONIBLES!", f"Estado: {detalle}", captura)
-            elif estado == "sin_cita":
-                telegram(f"🔍 Revisión automática: El monitor sigue activo y funcionando. {detalle}.", captura)
-            elif estado in ("bloqueo", "error"):
-                telegram(f"⚠️ Alerta en revisión: {detalle}. Se reintentará en el próximo bloque.", captura)
-        else:
-            log.info("Iniciando bucle de monitoreo permanente...")
-            errores_seguidos = 0
-            
-            while True:
-                estado, detalle, captura = una_revision(page)
-                log.info(f"Revisión: {estado} - {detalle}")
-
-                if estado == "hay_cita":
-                    avisar("🚨 ¡CITAS DISPONIBLES!", detalle, captura)
-                    errores_seguidos = 0
-                elif estado in ("error", "bloqueo"):
-                    errores_seguidos += 1
-                    if errores_seguidos >= ERRORES_REINICIO:
-                        telegram(f"⚠️ El monitor lleva {errores_seguidos} fallos seguidos. Último detalle: {detalle}", captura)
+            # Gestión de envío constante de reportes requeridos por el usuario hacia Telegram
