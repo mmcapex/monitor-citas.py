@@ -80,14 +80,12 @@ jobs:
               if contiene(texto_actual, TEXTOS_BLOQUEO):
                   log.info("Captcha Turnstile detectado. Solicitando resolución a TwoCaptcha...")
                   try:
-                      # ADAPTACIÓN OFICIAL EXIGIDA: Argumentos nombrados puros basados en la documentación oficial de Python SDK
+                      # CONFIGURACIÓN MINÚSCULA TOTAL: Cumple de forma estricta el tipado nativo del módulo TwoCaptcha
+                      real_agent = str(page.evaluate("navigator.userAgent"))
                       result = solver.turnstile(
                           sitekey='0x1AAAAAAAAkg0s2VIOD34y5',
                           url='https://citaconsular.es',
-                          data='foo',
-                          pagedata='bar',
-                          action='challenge',
-                          useragent=page.evaluate("navigator.userAgent")
+                          userAgent=real_agent
                       )
                       token = result['code'] if isinstance(result, dict) else result
                       log.info("Token de respuesta recibido con éxito de TwoCaptcha.")
@@ -107,7 +105,7 @@ jobs:
                       """)
                       page.wait_for_timeout(2000)
                   except Exception as e:
-                      return "bloqueo", f"Error en bypass de TwoCaptcha: {str(e)[:100]}"
+                      return "bloqueo", f"Error de TwoCaptcha: {str(e)[:100]}"
 
               for sel in ["#idCaptchaButton", "text=Continuar", "button:has-text('Continuar')"]:
                   try:
@@ -149,11 +147,10 @@ jobs:
                       
                   log.info(f"Resultado final: {estado} - {detalle}")
                   
-                  # ENVÍO GARANTIZADO DE REPORTES: Se ejecuta al final de forma obligatoria sin importar los fallos internos
                   if estado == "hay_cita":
                       telegram(f"🚨 ¡CITAS DISPONIBLES!\nEstado: {detalle}", captura)
                   elif estado == "sin_cita":
-                      telegram(f"🔍 Revisión automática: El monitor sigue activo y funcionando. {detalle}.", captura)
+                      telegram(f"🔍 Revisión automática: El monitor sigue activo. {detalle}.", captura)
                   else:
                       telegram(f"⚠️ Alerta en revisión del monitor: {detalle}.", captura)
                   browser.close()
@@ -162,5 +159,5 @@ jobs:
               main()
           EOF
           
-          echo "=== EJECUTANDO CONFIGURACIÓN INTEGRAL CORREGIDA ==="
+          echo "=== EJECUTANDO PARCHE NATIVO DE RED PROCESADO ==="
           python script_limpio.py
