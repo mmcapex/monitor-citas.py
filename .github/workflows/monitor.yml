@@ -22,7 +22,8 @@ jobs:
 
       - name: Instalar dependencias
         run: |
-          pip install playwright requests twocaptcha
+          # Instalación estricta de la librería oficial
+          pip install playwright requests 2captcha-python
           python -m playwright install --with-deps chromium
 
       - name: Ejecutar Monitor de Citas Corrector
@@ -80,7 +81,6 @@ jobs:
               if contiene(texto_actual, TEXTOS_BLOQUEO):
                   log.info("Captcha Turnstile detectado. Solicitando resolución a TwoCaptcha...")
                   try:
-                      # CONFIGURACIÓN MINÚSCULA TOTAL: Cumple de forma estricta el tipado nativo del módulo TwoCaptcha
                       real_agent = str(page.evaluate("navigator.userAgent"))
                       result = solver.turnstile(
                           sitekey='0x1AAAAAAAAkg0s2VIOD34y5',
@@ -159,5 +159,5 @@ jobs:
               main()
           EOF
           
-          echo "=== EJECUTANDO PARCHE NATIVO DE RED PROCESADO ==="
+          echo "=== EJECUTANDO CON LIBRERÍA OFICIAL DE 2CAPTCHA ==="
           python script_limpio.py
