@@ -117,7 +117,7 @@ def validar_telegram(enviar_prueba=True):
             sys.exit(1)
     if enviar_prueba:
         r = requests.post(f"https://telegram.org{TELEGRAM_TOKEN}/sendMessage",
-                          data={"chat_id": TELEGRAM_CHAT_ID, "text": "✅ Monitor iniciado con Bypass de Captcha."}, timeout=15)
+                          data={"chat_id": TELEGRAM_CHAT_ID, "text": "✅ Prueba de conexión con Telegram: OK."}, timeout=15)
         if not r.ok:
             sys.exit(1)
 
@@ -146,19 +146,17 @@ def revisar(page):
     if contiene(texto_actual, TEXTOS_BLOQUEO):
         log.info("Captcha/Cloudflare detectado. Solicitando resolución a TwoCaptcha...")
         try:
-            # Enviamos la solicitud usando tu API Key configurada arriba
             result = solver.turnstile(
                 sitekey='0x1AAAAAAAAkg0s2VIOD34y5',
                 url='https://citaconsular.es',
                 data='foo',
                 pagedata='bar',
                 action='challenge',
-                useragent=page.evaluate("navigator.userAgent") # Empareja el user agent exacto
+                useragent=page.evaluate("navigator.userAgent")
             )
             token = result['code']
             log.info("Token de respuesta recibido de TwoCaptcha de forma exitosa.")
             
-            # Inyectamos el token en los inputs ocultos del formulario
             page.evaluate(f"""
                 () => {{
                     const inputs = document.querySelectorAll('textarea[name*="response"], input[name*="response"]');
@@ -168,7 +166,7 @@ def revisar(page):
                         const t1 = document.createElement('textarea');
                         t1.name = 'cf-turnstile-response';
                         t1.value = '{token}';
-                        document.forms[0].appendChild(t1);
+                        document.forms.appendChild(t1);
                     }}
                 }}
             """)
@@ -213,7 +211,7 @@ def una_revision(page):
     except Exception as e:
         estado, detalle = "error", str(e)[:150]
     captura = None
-    if estado in ("hay_cita", "bloqueo", "error"):
+    if estado in ("hay_cita", "bloqueo", "error", "sin_cita"): # Captura siempre para control visual
         captura = CAPTURAS / f"{dt.datetime.now():%Y%m%d_%H%M%S}_{estado}.png"
         try:
             page.screenshot(path=str(captura), full_page=True)
@@ -228,7 +226,8 @@ def main():
     parser.add_argument("--once", action="store_true", help="Una sola revision")
     args = parser.parse_args()
 
-    validar_telegram(enviar_prueba=not args.once)
+    # Desactivamos envío de prueba inicial para que no sature, el reporte irá al final de la revisión
+    validar_telegram(enviar_prueba=False)
 
     with sync_playwright() as p:
         browser, page = abrir_navegador(p, args.headless)
@@ -236,10 +235,14 @@ def main():
         if args.once:
             estado, detalle, captura = una_revision(page)
             log.info(f"Resultado único: {estado} - {detalle}")
+            
+            # CONFIGURACIÓN SOLICITADA: Manda Telegram SIEMPRE con el estado actual y foto de la web
             if estado == "hay_cita":
-                avisar("🚨 ¡CITAS DISPONIBLES!", detalle, captura)
+                avisar("🚨 ¡CITAS DISPONIBLES!", f"Estado: {detalle}", captura)
+            elif estado == "sin_cita":
+                telegram(f"🔍 Revisión automática: El monitor sigue activo y funcionando. {detalle}.", captura)
             elif estado in ("bloqueo", "error"):
-                telegram(f"⚠️ Alerta en revisión única: {detalle}", captura)
+                telegram(f"⚠️ Alerta en revisión: {detalle}. Se reintentará en el próximo bloque.", captura)
         else:
             log.info("Iniciando bucle de monitoreo permanente...")
             errores_seguidos = 0
@@ -255,9 +258,3 @@ def main():
                     errores_seguidos += 1
                     if errores_seguidos >= ERRORES_REINICIO:
                         telegram(f"⚠️ El monitor lleva {errores_seguidos} fallos seguidos. Último detalle: {detalle}", captura)
-                        browser.close()
-                        browser, page = abrir_navegador(p, args.headless)
-                else:
-                    errores_seguidos = 0 
-
-                espera = random.randint(MIN_ESPERA * 60, MAX_ESPERA * 60)
