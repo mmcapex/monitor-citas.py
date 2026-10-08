@@ -3,7 +3,7 @@ name: Monitor citas consulado
 on:
   schedule:
     - cron: "0 */4 * * *"       # Se ejecuta automáticamente cada 4 horas
-  workflow_dispatch:            # Mantiene el botón manual para pruebas en vivo
+  workflow_dispatch:            # Mantiene el botón manual para pruebas
 
 jobs:
   revisar:
@@ -29,6 +29,4 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          echo "=== INICIANDO CONFIGURACIÓN ==="
-          python monitor-citas.py --once --headless
+        run: python monitor-citas.py
