@@ -41,7 +41,6 @@ jobs:
           TWOCAPTCHA_API_KEY = "77aaab32216b8819fccec3509de3eade"
           SERVICIO = ""
 
-          # CREDENCIAL FIJA DE CHAT
           TELEGRAM_CHAT_ID = "7759185260"
 
           TEXTOS_SIN_CITA = ["no hay horas disponibles", "no hay citas disponibles", "no available hours", "no hours available", "no hay horas", "sin citas", "no se han encontrado"]
@@ -56,7 +55,6 @@ jobs:
           log = logging.getLogger("monitor")
 
           def telegram(texto, captura=None):
-              # URLs ABSOLUTAS FIJAS: Completamente corregidas con la barra diagonal nativa para evitar que se junten
               url_texto = "https://telegram.org"
               url_foto = "https://telegram.org"
               
@@ -82,15 +80,17 @@ jobs:
               if contiene(texto_actual, TEXTOS_BLOQUEO):
                   log.info("Captcha detectado. Solicitando resolución a TwoCaptcha...")
                   try:
-                      result = solver.turnstile(
-                          sitekey='0x1AAAAAAAAkg0s2VIOD34y5',
-                          url='https://citaconsular.es',
-                          data='foo',
-                          pagedata='bar',
-                          action='challenge',
-                          useragent=page.evaluate("navigator.userAgent")
-                      )
-                      token = result['code']
+                      # SINTAXIS CORECTA: Uso de los parámetros de envío universales para Turnstile
+                      result = solver.solve_captcha({
+                          'type': 'turnstile',
+                          'sitekey': '0x1AAAAAAAAkg0s2VIOD34y5',
+                          'pageurl': 'https://citaconsular.es',
+                          'data': 'foo',
+                          'pagedata': 'bar',
+                          'action': 'challenge',
+                          'useragent': page.evaluate("navigator.userAgent")
+                      })
+                      token = result if isinstance(result, str) else result.get('code')
                       log.info("Token de respuesta recibido con éxito.")
                       
                       page.evaluate(f"""
@@ -136,12 +136,14 @@ jobs:
                   browser = p.chromium.launch(headless=True)
                   ctx = browser.new_context(locale="es-ES", viewport={"width": 1366, "height": 900})
                   page = ctx.new_page()
+                  
+                  # Tomamos una captura limpia de control inicial obligatoria por seguridad
                   try:
                       estado, detalle = revisar(page)
                   except Exception as e:
                       estado, detalle = "error", str(e)[:150]
                       
-                  captura = CAPTURAS / f"{dt.datetime.now():%Y%m%d_%H%M%S}_{estado}.png"
+                  captura = CAPTURAS / f"reporte_actual.png"
                   try:
                       page.screenshot(path=str(captura), full_page=True)
                   except Exception:
@@ -161,5 +163,5 @@ jobs:
               main()
           EOF
           
-          echo "=== EJECUTANDO CON URL INTEGRADA CORREGIDA ==="
+          echo "=== EJECUTANDO CON RESOLVEDOR DE CAPTCHA CORREGIDO ==="
           python script_limpio.py
