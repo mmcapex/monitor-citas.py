@@ -58,12 +58,18 @@ jobs:
               url_texto = "https://telegram.org"
               url_foto = "https://telegram.org"
               
+              # Primero enviamos el texto de forma obligatoria
               r = requests.post(url_texto, data={"chat_id": TELEGRAM_CHAT_ID, "text": texto}, timeout=15)
               if not r.ok:
-                  raise Exception(f"Telegram rechazó el mensaje. API: {r.text}")
+                  raise Exception(f"Telegram rechazó el mensaje de texto. API: {r.text}")
+              
+              # Intentamos enviar la foto en un bloque independiente para que si falla, no destruya el aviso
               if captura and Path(captura).exists():
-                  with open(captura, "rb") as f:
-                      requests.post(url_foto, data={"chat_id": TELEGRAM_CHAT_ID}, files={"photo": f}, timeout=30)
+                  try:
+                      with open(captura, "rb") as f:
+                          requests.post(url_foto, data={"chat_id": TELEGRAM_CHAT_ID}, files={"photo": f}, timeout=30)
+                  except Exception as e:
+                      log.error(f"Telegram no pudo procesar el archivo de imagen adjunto: {e}")
 
           def contiene(texto, lista):
               return any(t in texto for t in lista)
@@ -81,7 +87,6 @@ jobs:
                   log.info("Captcha Turnstile detectado. Solicitando resolución a TwoCaptcha...")
                   try:
                       real_agent = str(page.evaluate("navigator.userAgent"))
-                      # CLAVE REAL INSTALADA: Clave pública Turnstile del widget de citaconsular.es
                       result = solver.turnstile(
                           sitekey='0x4AAAAAAADnHH96Z65ksbBe',
                           url='https://citaconsular.es',
@@ -159,5 +164,5 @@ jobs:
               main()
           EOF
           
-          echo "=== EJECUTANDO CON LIBRERÍA OFICIAL DE 2CAPTCHA ==="
+          echo "=== EJECUTANDO CON ENVIADOR DE TEXTO SEPARADO ==="
           python script_limpio.py
