@@ -78,20 +78,19 @@ jobs:
               texto_actual = page.inner_text("body").lower()
 
               if contiene(texto_actual, TEXTOS_BLOQUEO):
-                  log.info("Captcha detectado. Solicitando resolución a TwoCaptcha...")
+                  log.info("Captcha Turnstile detectado. Solicitando resolución a TwoCaptcha...")
                   try:
-                      # SINTAXIS ESTRICTA CORREGIDA: Se define 'pageurl' exactamente como lo exige el módulo oficial
-                      result = solver.solve_captcha({
-                          'type': 'turnstile',
-                          'sitekey': '0x1AAAAAAAAkg0s2VIOD34y5',
-                          'pageurl': 'https://citaconsular.es',
-                          'data': 'foo',
-                          'pagedata': 'bar',
-                          'action': 'challenge',
-                          'useragent': page.evaluate("navigator.userAgent")
-                      })
-                      token = result if isinstance(result, str) else result.get('code')
-                      log.info("Token de respuesta recibido con éxito.")
+                      # ADAPTACIÓN OFICIAL EXIGIDA: Argumentos nombrados puros basados en la documentación oficial de Python SDK
+                      result = solver.turnstile(
+                          sitekey='0x1AAAAAAAAkg0s2VIOD34y5',
+                          url='https://citaconsular.es',
+                          data='foo',
+                          pagedata='bar',
+                          action='challenge',
+                          useragent=page.evaluate("navigator.userAgent")
+                      )
+                      token = result['code'] if isinstance(result, dict) else result
+                      log.info("Token de respuesta recibido con éxito de TwoCaptcha.")
                       
                       page.evaluate(f"""
                           () => {{
@@ -108,7 +107,7 @@ jobs:
                       """)
                       page.wait_for_timeout(2000)
                   except Exception as e:
-                      return "bloqueo", f"Error interno de TwoCaptcha: {str(e)[:100]}"
+                      return "bloqueo", f"Error en bypass de TwoCaptcha: {str(e)[:100]}"
 
               for sel in ["#idCaptchaButton", "text=Continuar", "button:has-text('Continuar')"]:
                   try:
@@ -150,11 +149,11 @@ jobs:
                       
                   log.info(f"Resultado final: {estado} - {detalle}")
                   
-                  # FLUJO INTEGRAL: El mensaje se enviará pase lo que pase con los captchas
+                  # ENVÍO GARANTIZADO DE REPORTES: Se ejecuta al final de forma obligatoria sin importar los fallos internos
                   if estado == "hay_cita":
                       telegram(f"🚨 ¡CITAS DISPONIBLES!\nEstado: {detalle}", captura)
                   elif estado == "sin_cita":
-                      telegram(f"🔍 Revisión automática: El monitor sigue activo. {detalle}.", captura)
+                      telegram(f"🔍 Revisión automática: El monitor sigue activo y funcionando. {detalle}.", captura)
                   else:
                       telegram(f"⚠️ Alerta en revisión del monitor: {detalle}.", captura)
                   browser.close()
@@ -163,5 +162,5 @@ jobs:
               main()
           EOF
           
-          echo "=== EJECUTANDO CON PARÁMETROS DE DICCIONARIO CORREGIDOS ==="
+          echo "=== EJECUTANDO CONFIGURACIÓN INTEGRAL CORREGIDA ==="
           python script_limpio.py
