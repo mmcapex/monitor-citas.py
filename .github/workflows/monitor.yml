@@ -25,11 +25,13 @@ jobs:
           pip install playwright requests twocaptcha
           python -m playwright install --with-deps chromium
 
-      - name: Revisar citas
+           - name: Revisar citas
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          echo "=== INICIANDO EJECUCIÓN CON BÚSQUEDA AUTOMÁTICA ==="
-          python monitor*.py --once --headless
+          echo "=== ENCONTRANDO EL SCRIPT ==="
+          SCRIPT_PATH=$(find . -maxdepth 1 -name "monitor*.py" -print -quit)
+          echo "Ejecutando: $SCRIPT_PATH"
+          python "$SCRIPT_PATH" --once --headless
 
